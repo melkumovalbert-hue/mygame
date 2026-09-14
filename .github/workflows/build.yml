@@ -1,42 +1,45 @@
-name: Build APK
+[app]
 
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+# Название приложения
+title = My Application
 
-jobs:
-  build:
-    runs-on: ubuntu-22.04
+# Имя пакета
+package.name = myapp
 
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+# Домен пакета
+package.domain = org.example
 
-    - name: Set up Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+# Исходные файлы (код Python, изображения и т.д.)
+source.include_exts = py,png,jpg,kv,atlas
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+# Главная точка входа
+source.main = main.py
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential libltdl-dev libffi-dev libssl-dev python3-pip git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake
-        pip install --upgrade pip
-        pip install buildozer cython==0.29.33 virtualenv
+# Версия приложения
+version = 0.1
 
-    - name: Build with Buildozer
-      run: |
-        yes | buildozer -v android debug
+# Требования (например, kivy, python3)
+requirements = python3,kivy
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: package
-        path: bin/*.apk
+# Ориентация экрана
+orientation = portrait
+
+# Поддерживаемые архитектуры (для универсального APK или только arm64)
+android.archs = arm64-v8a, armeabi-v7a
+
+# ВАЖНО: Актуальные версии API и NDK для стабильной сборки
+android.api = 33
+android.minapi = 21
+android.ndk = 25b
+android.sdk = 33
+
+# Автоматическое принятие лицензий Android SDK
+android.accept_sdk_license = True
+
+[buildozer]
+
+# Уровень логирования (1 = информация, 2 = отладка)
+log_level = 2
+
+# Предупреждение о запуске от root (для контейнеров GitHub Actions)
+warn_on_root = 1
