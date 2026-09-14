@@ -35,11 +35,10 @@ jobs:
           pip install buildozer cython virtualenv
 
       - name: Build APK with Buildozer
-        run: |
-          yes | buildozer android debug
+        run: buildozer android debug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: SpaceDodger-APK
-          path: bin/*.apk
+          path: bin/*.apk1
