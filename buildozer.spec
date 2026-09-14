@@ -1,0 +1,10 @@
+[app]
+title = Space Dodger
+package.name = spacedodger
+package.domain = org.test
+source.include_exts = py,png,jpg,kv,atlas
+version = 0.1
+requirements = python3,pygame
+orientation = portrait
+fullscreen = 0
+android.accept_sdk_license = True
