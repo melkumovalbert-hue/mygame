@@ -37,7 +37,7 @@ jobs:
             libssl-dev \
             python3-dev \
             zlib1g-dev \
-            libncurses5 \
+            libncurses5-dev \
             libstdc++6 \
             libbz2-dev \
             autoconf \
