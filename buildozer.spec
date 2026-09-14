@@ -3,10 +3,10 @@ title = SpaceShooter
 package.name = spaceshooter
 package.domain = org.test
 source.dir = .
-source.include_exts = py,png,jpg,kv,atlas,wav,mp3,ogg
+source.include_exts = py,png,jpg,kv,atlas,wav,mp3
 version = 0.1
 
-requirements = python3,pygame
+requirements = python3,kivy
 
 orientation = portrait
 osx.python_version = 3
@@ -21,4 +21,4 @@ android.archs = arm64-v8a
 
 [buildozer]
 log_level = 1
-warn_on_root = 1
+warn_on_root = 12
