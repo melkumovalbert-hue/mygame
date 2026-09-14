@@ -1,28 +1,31 @@
 [app]
+# Название игры
+title = SpaceDodger
 
-title = Космический уворотчик
-package.name = kosmicheskiyuvorotchik
-package.domain = org.albert
+# Имя пакета (только маленькие буквы и без пробелов)
+package.name = spacedodger
 
+# Домен (можешь оставить так или вписать свой)
+package.domain = org.твоеимя
+
+# Путь к исходникам (точка означает текущую папку)
 source.dir = .
-source.include_exts = py,png,jpg,jpeg,wav,mp3,ogg,ttf
 
+# Разрешенные форматы файлов
+source.include_exts = py,png,jpg,ttf,wav,ogg
+
+# Версия приложения
 version = 1.0
 
-requirements = python3==3.10.12,hostpython3==3.10.12,pygame==2.5.2
+# Зависимости (самое главное для твоего кода)
+requirements = python3,pygame
 
+# Ориентация экрана (твоя игра вертикальная)
 orientation = portrait
 fullscreen = 1
 
-android.api = 33
-android.minapi = 21
-android.ndk = 25b
-android.ndk_api = 21
-android.archs = arm64-v8a
+# Архитектуры процессоров (поддерживает большинство современных телефонов, включая твой Redmi)
+android.archs = arm64-v8a, armeabi-v7a
 
-android.permissions = VIBRATE
-
-[buildozer]
-
-log_level = 2
-warn_on_root = 0
+# Разрешить создание бэкапов
+android.allow_backup = True
