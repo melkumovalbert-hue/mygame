@@ -1,46 +1,41 @@
 import os
 import sys
-import random
 import math
 import array
+import random
+
 import pygame
 
-# 1. Защищенная инициализация звука для Android
-os.environ['SDL_AUDIODRIVER'] = 'dummy' if not os.environ.get('SDL_AUDIODRIVER') else os.environ['SDL_AUDIODRIVER']
-
+# 1. Безопасная инициализация Pygame и звука
 try:
-    pygame.mixer.pre_init(44100, -16, 2, 512)
+    pygame.mixer.pre_init(44100, -16, 1, 512)
     pygame.init()
     pygame.font.init()
 except Exception as e:
-    print(f"Ошибка инициализации Pygame: {e}")
+    print(f"Ошибка инициализации: {e}")
 
-# --- Генератор звуковых эффектов в памяти (без внешних файлов .wav) ---
+# --- Синтезатор только нужных звуковых эффектов ---
 def create_synth_sound(freq_start, freq_end, duration, wave_type='square', volume=0.3):
-    sample_rate = 44100
-    n_samples = int(sample_rate * duration)
-    buf = array.array('h')
-    
-    for i in range(n_samples):
-        t = float(i) / sample_rate
-        progress = float(i) / n_samples
-        freq = freq_start + (freq_end - freq_start) * progress
-        
-        if wave_type == 'square':
-            val = 32767 if math.sin(2 * math.pi * freq * t) > 0 else -32768
-        elif wave_type == 'saw':
-            val = int(32767 * (2 * (t * freq - math.floor(t * freq + 0.5))))
-        elif wave_type == 'noise':
-            val = random.randint(-32768, 32767)
-        else:  # sine
-            val = int(32767 * math.sin(2 * math.pi * freq * t))
-            
-        env = 1.0 - progress  # плавное затухание
-        buf.append(int(val * volume * env))
-        
     try:
-        return pygame.mixer.Sound(buffer=buf)
-    except Exception:
+        sample_rate = 44100
+        n_samples = int(sample_rate * duration)
+        buf = array.array('h')
+        for i in range(n_samples):
+            t = float(i) / sample_rate
+            progress = float(i) / n_samples
+            freq = freq_start + (freq_end - freq_start) * progress
+            if wave_type == 'square':
+                val = 32767 if math.sin(2 * math.pi * freq * t) > 0 else -32768
+            elif wave_type == 'saw':
+                val = int(32767 * (2 * (t * freq - math.floor(t * freq + 0.5))))
+            elif wave_type == 'noise':
+                val = random.randint(-32768, 32767)
+            else:
+                val = int(32767 * math.sin(2 * math.pi * freq * t))
+            env = 1.0 - progress
+            buf.append(int(val * volume * env))
+        return pygame.mixer.Sound(buffer=buf.tobytes())
+    except Exception as e:
         return None
 
 def safe_play(sound):
@@ -50,256 +45,383 @@ def safe_play(sound):
         except Exception:
             pass
 
-# Инициализация звуков
-snd_kill = create_synth_sound(300, 50, 0.15, wave_type='noise', volume=0.4)       # Убийство
-snd_buy = create_synth_sound(600, 900, 0.12, wave_type='square', volume=0.3)      # Покупка
-snd_boss = create_synth_sound(120, 60, 0.6, wave_type='saw', volume=0.5)          # Появление босса
-snd_upgrade = create_synth_sound(400, 800, 0.25, wave_type='sine', volume=0.4)    # Улучшение
-snd_respawn = create_synth_sound(200, 600, 0.35, wave_type='sine', volume=0.4)    # Возрождение
-snd_shield = create_synth_sound(500, 550, 0.2, wave_type='saw', volume=0.3)       # Активация щита
+# ТОЛЬКО ТРЕБУЕМЫЕ ЗВУКИ:
+snd_shoot = create_synth_sound(800, 200, 0.06, wave_type='square', volume=0.15)  # Звук пуль игрока
+snd_kill = create_synth_sound(250, 40, 0.14, wave_type='noise', volume=0.4)     # Убийство
+snd_shop = create_synth_sound(440, 660, 0.15, wave_type='sine', volume=0.3)      # Вход в магазин
+snd_respawn = create_synth_sound(220, 700, 0.35, wave_type='sine', volume=0.4)   # Возрождение
 
-# 2. Разрешение экрана
-info = pygame.display.Info()
-WIDTH = info.current_w if info.current_w > 0 else 720
-HEIGHT = info.current_h if info.current_h > 0 else 1280
+try:
+    WIDTH, HEIGHT = 720, 1280
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption("Космический уворотчик")
+    
+    clock = pygame.time.Clock()
+    
+    BLACK = (10, 10, 25)
+    WHITE = (255, 255, 255)
+    RED = (230, 50, 50)
+    GREEN = (50, 230, 50)
+    BLUE = (50, 150, 255)
+    YELLOW = (255, 215, 0)
+    PURPLE = (147, 112, 219)
+    GRAY = (50, 50, 60)
+    DARK_GRAY = (30, 30, 40)
 
-screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
-pygame.display.set_caption("Space Shooter")
-clock = pygame.time.Clock()
+    def get_safe_font(size):
+        try:
+            return pygame.font.Font(None, size)
+        except Exception:
+            return None
 
-# Безопасный встроенный шрифт
-def get_safe_font(size):
-    return pygame.font.Font(None, size)
+    font = get_safe_font(36)
+    font_large = get_safe_font(52)
 
-font = get_safe_font(36)
-font_large = get_safe_font(52)
+    coins = 0
+    run_coins = 0
+    distance = 0.0
+    last_boss_fifty = 0
+    weapon_level = 1
+    shield_time = 0
+    game_state = "MENU"
+    current_skin = "green"
 
-# Цвета
-BLACK = (10, 10, 25)
-WHITE = (255, 255, 255)
-RED = (235, 50, 50)
-GREEN = (50, 230, 50)
-BLUE = (50, 150, 255)
-YELLOW = (255, 215, 0)
-PURPLE = (147, 112, 219)
+    class Player:
+        def __init__(self):
+            self.x = float(WIDTH // 2)
+            self.y = float(HEIGHT - 250)
+            self.width = 60
+            self.height = 60
 
-# Состояние игры и ресурсы
-coins = 0
-run_coins = 0
-distance = 0.0
-last_boss_fifty = 0
-weapon_level = 1
-shield_time = 0
-game_state = "MENU"  # MENU, PLAYING, SHOP, GAMEOVER
-current_skin = "green"
+        def draw(self):
+            if current_skin == "blue":
+                main_color, wing_color, engine_color = (30, 144, 255), (0, 100, 200), (0, 255, 255)
+            elif current_skin == "red":
+                main_color, wing_color, engine_color = (255, 69, 0), (178, 34, 34), (255, 255, 0)
+            elif current_skin == "yellow":
+                main_color, wing_color, engine_color = (255, 215, 0), (218, 165, 32), (255, 100, 0)
+            else:
+                main_color, wing_color, engine_color = (50, 205, 50), (34, 139, 34), (0, 255, 127)
 
-class Player:
-    def __init__(self):
-        self.width = 60
-        self.height = 60
-        self.x = float(WIDTH // 2)
-        self.y = float(HEIGHT - 250)
-        self.hp = 100
-        self.max_hp = 100
+            px, py = int(self.x), int(self.y)
 
-    def draw(self, surface):
-        px, py = int(self.x), int(self.y)
-        main_color = GREEN if current_skin == "green" else (BLUE if current_skin == "blue" else RED)
-        
-        # Отрисовка корабля
-        pygame.draw.polygon(surface, main_color, [(px, py), (px - 25, py + 50), (px + 25, py + 50)])
-        pygame.draw.polygon(surface, WHITE, [(px, py + 10), (px - 10, py + 40), (px + 10, py + 40)])
-        
-        # Щит
-        if shield_time > 0:
-            pygame.draw.circle(surface, BLUE, (px, py + 25), 45, 3)
+            pygame.draw.polygon(screen, engine_color, [(px - 15, py + 50), (px - 5, py + 70), (px - 25, py + 70)])
+            pygame.draw.polygon(screen, engine_color, [(px + 15, py + 50), (px + 5, py + 70), (px + 25, py + 70)])
+            pygame.draw.polygon(screen, wing_color, [(px, py + 10), (px - 45, py + 55), (px - 15, py + 45)])
+            pygame.draw.polygon(screen, wing_color, [(px, py + 10), (px + 45, py + 55), (px + 15, py + 45)])
+            pygame.draw.polygon(screen, main_color, [(px, py), (px - 20, py + 55), (px + 20, py + 55)])
+            pygame.draw.ellipse(screen, WHITE, (px - 8, py + 20, 16, 25))
 
-class Bullet:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.speed = 18
+            if shield_time > 0:
+                pygame.draw.circle(screen, BLUE, (px, py + 30), 65, 4)
 
-    def update(self):
-        self.y -= self.speed
+    class Bullet:
+        def __init__(self, x, y):
+            self.x = x
+            self.y = y
+        def update(self):
+            self.y -= 22
+        def draw(self):
+            pygame.draw.rect(screen, YELLOW, (int(self.x - 4), int(self.y - 15), 8, 20), border_radius=3)
 
-    def draw(self, surface):
-        pygame.draw.rect(surface, YELLOW, (int(self.x) - 3, int(self.y), 6, 16))
+    class EnemyBullet:
+        def __init__(self, x, y, speed=8):
+            self.x = x
+            self.y = y
+            self.speed = speed
+        def update(self):
+            self.y += self.speed
+        def draw(self):
+            pygame.draw.rect(screen, RED, (int(self.x - 4), int(self.y), 8, 16), border_radius=3)
 
-class Enemy:
-    def __init__(self, is_boss=False):
-        self.is_boss = is_boss
-        self.radius = 60 if is_boss else random.randint(20, 40)
-        self.x = random.randint(self.radius, WIDTH - self.radius)
-        self.y = -self.radius
-        self.speed = 4 if is_boss else random.randint(5, 9)
-        self.hp = 20 if is_boss else 1
+    class Enemy:
+        def __init__(self, type_str):
+            self.type = type_str
+            self.x = random.randint(80, WIDTH - 80)
+            self.y = -80
+            self.shoot_timer = random.randint(90, 160)
+            
+            if self.type == 'normal':
+                self.width, self.height = 70, 60
+                self.hp = 4
+                self.speed = random.randint(2, 4)
+                self.color = RED
+                self.reward = 1
+                
+            elif self.type == 'elite':
+                self.width, self.height = 95, 80
+                self.hp = 8
+                self.speed = 2
+                self.color = PURPLE
+                self.reward = 3
+                
+            elif self.type == 'boss':
+                self.width, self.height = 180, 120
+                self.hp = 50
+                self.speed = 1
+                self.color = YELLOW
+                self.reward = 10
+                self.is_stopped = False
+                self.shoot_timer = 50
 
-    def update(self):
-        self.y += self.speed
+        def update(self):
+            if self.type == 'boss':
+                if not self.is_stopped:
+                    self.y += self.speed
+                    if self.y >= 200: self.is_stopped = True
+                
+                self.shoot_timer -= 1
+                if self.shoot_timer <= 0:
+                    self.shoot_timer = 65
+                    enemy_bullets.append(EnemyBullet(self.x - 40, self.y + self.height // 2, 7))
+                    enemy_bullets.append(EnemyBullet(self.x, self.y + self.height // 2, 8))
+                    enemy_bullets.append(EnemyBullet(self.x + 40, self.y + self.height // 2, 7))
+            else:
+                self.y += self.speed
+                self.shoot_timer -= 1
+                if self.shoot_timer <= 0:
+                    self.shoot_timer = random.randint(100, 180)
+                    enemy_bullets.append(EnemyBullet(self.x, self.y + self.height // 2))
 
-    def draw(self, surface):
-        color = PURPLE if self.is_boss else RED
-        pygame.draw.circle(surface, color, (int(self.x), int(self.y)), self.radius)
-
-def main():
-    global coins, run_coins, distance, last_boss_fifty, weapon_level, shield_time, game_state, current_skin
+        def draw(self):
+            ex, ey = int(self.x), int(self.y)
+            if self.type == 'normal':
+                pygame.draw.ellipse(screen, self.color, (ex - 35, ey - 15, 70, 30))
+                pygame.draw.circle(screen, YELLOW, (ex, ey), 6)
+            elif self.type == 'elite':
+                pygame.draw.polygon(screen, self.color, [(ex, ey + 30), (ex - 45, ey - 20), (ex + 45, ey - 20)])
+            elif self.type == 'boss':
+                pygame.draw.rect(screen, DARK_GRAY, (ex - 90, ey - 45, 180, 90), border_radius=15)
+                pygame.draw.rect(screen, self.color, (ex - 60, ey - 60, 120, 30), border_radius=8)
 
     player = Player()
     bullets = []
+    enemy_bullets = []
     enemies = []
-    last_shot = 0
-    dragging = False
-
+    
+    touch_pos = (WIDTH // 2, HEIGHT - 250)
+    is_touching = False
+    fire_cooldown = 0
     running = True
+
+    def draw_btn(text, x, y, w, h, col=GRAY):
+        pygame.draw.rect(screen, col, (x, y, w, h), border_radius=15)
+        if font:
+            txt = font.render(text, True, WHITE)
+            screen.blit(txt, (x + (w - txt.get_width()) // 2, y + (h - txt.get_height()) // 2))
+
     while running:
-        now = pygame.time.get_ticks()
+        screen.fill(BLACK)
+        click_event = False
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                click_event = True
+                is_touching = True
+                touch_pos = event.pos
+            elif event.type == pygame.MOUSEBUTTONUP:
+                is_touching = False
+            elif event.type == pygame.MOUSEMOTION:
+                if is_touching:
+                    touch_pos = event.pos
 
-            elif event.type in (pygame.MOUSEBUTTONDOWN, pygame.FINGERDOWN):
-                pos = pygame.mouse.get_pos()
-                
-                if game_state == "MENU":
-                    # Кнопка старта
-                    game_state = "PLAYING"
-                    player.hp = 100
-                    enemies.clear()
-                    bullets.clear()
-                    distance = 0.0
-                    run_coins = 0
-                    safe_play(snd_respawn)  # Звук старта / возрождения
-                    
-                elif game_state == "GAMEOVER":
-                    # Возрождение
-                    game_state = "PLAYING"
-                    player.hp = 100
-                    enemies.clear()
-                    bullets.clear()
-                    safe_play(snd_respawn)  # Звук возрождения
-                    
-                elif game_state == "PLAYING":
-                    dragging = True
-                    player.x, player.y = pos[0], pos[1]
+        if game_state == "MENU":
+            if font_large:
+                title = font_large.render("КОСМИЧЕСКИЙ УВОРОТЧИК", True, WHITE)
+                screen.blit(title, (WIDTH // 2 - title.get_width() // 2, HEIGHT // 4))
 
-            elif event.type in (pygame.MOUSEBUTTONUP, pygame.FINGERUP):
-                dragging = False
+            draw_btn("ИГРАТЬ", 100, HEIGHT * 0.45, WIDTH - 200, 90, BLUE)
+            draw_btn("МАГАЗИН", 100, HEIGHT * 0.58, WIDTH - 200, 90, GRAY)
 
-            elif event.type in (pygame.MOUSEMOTION, pygame.FINGERMOTION):
-                if dragging and game_state == "PLAYING":
-                    pos = pygame.mouse.get_pos()
-                    player.x, player.y = pos[0], pos[1]
+            if click_event:
+                bx, by = 100, HEIGHT * 0.45
+                if bx < touch_pos[0] < bx + (WIDTH - 200):
+                    if by < touch_pos[1] < by + 90:
+                        game_state = "PLAYING"
+                        distance = 0.0
+                        run_coins = 0
+                        last_boss_fifty = 0
+                        enemies.clear()
+                        bullets.clear()
+                        enemy_bullets.clear()
+                        player.x, player.y = float(WIDTH // 2), float(HEIGHT - 250)
+                    elif HEIGHT * 0.58 < touch_pos[1] < HEIGHT * 0.58 + 90:
+                        game_state = "SHOP"
+                        safe_play(snd_shop)  # Звук входа в магазин
 
-        # --- Логика игры ---
-        if game_state == "PLAYING":
-            distance += 0.1
-            if shield_time > 0:
-                shield_time -= 1
+        elif game_state == "SHOP":
+            if font_large:
+                title = font_large.render("МАГАЗИН", True, WHITE)
+                screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 60))
 
-            # Появление босса каждые 50 единиц дистанции
-            current_fifty = int(distance // 50)
-            if current_fifty > last_boss_fifty:
+            if font:
+                t_coins = font.render(f"Монеты: {coins}", True, YELLOW)
+                screen.blit(t_coins, (60, 140))
+
+            if weapon_level == 1:
+                weapon_cost = 50
+                weapon_text = "Улучшить пушку (50)"
+            elif weapon_level == 2:
+                weapon_cost = 70
+                weapon_text = "Улучшить пушку (70)"
+            elif weapon_level == 3:
+                weapon_cost = 80
+                weapon_text = "Улучшить пушку (80)"
+            else:
+                weapon_cost = 999999
+                weapon_text = "Пушка максимальна"
+
+            draw_btn("Синий скин (40)", 70, 270, WIDTH - 140, 75)
+            draw_btn("Огненный (60)", 70, 360, WIDTH - 140, 75)
+            draw_btn("Золотой (100)", 70, 450, WIDTH - 140, 75)
+            draw_btn(weapon_text, 70, 540, WIDTH - 140, 75)
+            draw_btn("Щит 10 сек (45)", 70, 630, WIDTH - 140, 75)
+            draw_btn("НАЗАД", 70, HEIGHT - 140, WIDTH - 140, 80, RED)
+
+            if click_event:
+                if 70 < touch_pos[0] < WIDTH - 70:
+                    y = touch_pos[1]
+                    if HEIGHT - 140 < y < HEIGHT - 60:
+                        game_state = "MENU"
+                    elif 270 < y < 345 and coins >= 40:
+                        coins -= 40; current_skin = "blue"
+                    elif 360 < y < 435 and coins >= 60:
+                        coins -= 60; current_skin = "red"
+                    elif 450 < y < 525 and coins >= 100:
+                        coins -= 100; current_skin = "yellow"
+                    elif 540 < y < 615 and coins >= weapon_cost and weapon_level < 4:
+                        coins -= weapon_cost; weapon_level += 1
+                    elif 630 < y < 705 and coins >= 45:
+                        coins -= 45; shield_time = 600
+
+        elif game_state == "PLAYING":
+            distance += 0.05
+
+            current_fifty = int(distance) // 50
+            if current_fifty > last_boss_fifty and int(distance) > 0:
+                enemies.append(Enemy('boss'))
                 last_boss_fifty = current_fifty
-                enemies.append(Enemy(is_boss=True))
-                safe_play(snd_boss)  # Звук появления босса
 
-            # Выстрелы
-            if now - last_shot > 150:
-                bullets.append(Bullet(player.x, player.y))
-                last_shot = now
+            if is_touching:
+                player.x += (float(touch_pos[0]) - player.x) * 0.25
+                player.y += (float(touch_pos[1]) - player.y) * 0.25
+                player.x = max(50, min(float(WIDTH - 50), player.x))
+                player.y = max(150, min(float(HEIGHT - 150), player.y))
 
-            # Спавн обычных врагов
-            if random.random() < 0.05:
-                enemies.append(Enemy(is_boss=False))
+            if fire_cooldown > 0: fire_cooldown -= 1
+            if is_touching and fire_cooldown == 0:
+                if weapon_level == 1:
+                    bullets.append(Bullet(player.x, player.y))
+                elif weapon_level == 2:
+                    bullets.append(Bullet(player.x - 15, player.y))
+                    bullets.append(Bullet(player.x + 15, player.y))
+                else:
+                    bullets.append(Bullet(player.x, player.y))
+                    bullets.append(Bullet(player.x - 20, player.y))
+                    bullets.append(Bullet(player.x + 20, player.y))
+                
+                safe_play(snd_shoot)  # Звук выстрела игрока
+                fire_cooldown = 14
 
-            # Обновление пуль
+            if random.randint(1, 28) == 1:
+                e_type = 'normal' if random.randint(1, 4) != 1 else 'elite'
+                enemies.append(Enemy(e_type))
+
             for b in bullets[:]:
                 b.update()
-                if b.y < -20:
-                    bullets.remove(b)
+                b.draw()
+                if b.y < 0: bullets.remove(b)
 
-            # Обновление и столкновения врагов
+            for eb in enemy_bullets[:]:
+                eb.update()
+                eb.draw()
+                if abs(player.x - eb.x) < 30 and abs(player.y + 25 - eb.y) < 30:
+                    if shield_time > 0:
+                        if eb in enemy_bullets: enemy_bullets.remove(eb)
+                    else:
+                        coins += run_coins
+                        run_coins = 0
+                        game_state = "GAMEOVER"
+                if eb.y > HEIGHT: enemy_bullets.remove(eb)
+
             for e in enemies[:]:
                 e.update()
+                e.draw()
 
-                # Попадание пули во врага
+                if abs(player.x - e.x) < (player.width + e.width)//2 and abs(player.y - e.y) < (player.height + e.height)//2:
+                    if shield_time > 0: 
+                        enemies.remove(e)
+                    else:
+                        coins += run_coins
+                        run_coins = 0
+                        game_state = "GAMEOVER"
+
                 for b in bullets[:]:
-                    if math.hypot(b.x - e.x, b.y - e.y) < e.radius:
-                        e.hp -= weapon_level
-                        if b in bullets:
-                            bullets.remove(b)
+                    if abs(b.x - e.x) < e.width//2 and abs(b.y - e.y) < e.height//2:
+                        e.hp -= 1
+                        if b in bullets: bullets.remove(b)
                         if e.hp <= 0:
-                            if e in enemies:
-                                enemies.remove(e)
+                            run_coins += e.reward
                             safe_play(snd_kill)  # Звук убийства врага
-                            run_coins += 5 if e.is_boss else 1
-                            coins += 5 if e.is_boss else 1
+                            if e in enemies: enemies.remove(e)
                             break
 
-                # Столкновение с игроком
-                if math.hypot(player.x - e.x, player.y - e.y) < e.radius + 25:
-                    if shield_time <= 0:
-                        player.hp -= 30 if e.is_boss else 15
-                        if player.hp <= 0:
-                            game_state = "GAMEOVER"
-                    if e in enemies:
-                        enemies.remove(e)
+                if e.y > HEIGHT + 100: enemies.remove(e)
 
-                if e.y > HEIGHT + 50 and e in enemies:
-                    enemies.remove(e)
+            if shield_time > 0: shield_time -= 1
 
-        # --- Отрисовка ---
-        screen.fill(BLACK)
+            if font:
+                txt_d = font.render(f"Дист: {int(distance)}", True, WHITE)
+                txt_c = font.render(f"Монеты: {run_coins}", True, YELLOW)
+                screen.blit(txt_d, (40, 40))
+                screen.blit(txt_c, (WIDTH - 260, 40))
 
-        if game_state == "PLAYING":
-            player.draw(surface=screen)
-            for b in bullets:
-                b.draw(screen)
-            for e in enemies:
-                e.draw(screen)
-
-            # Текст UI
-            txt_dist = font.render(f"Дистанция: {int(distance)}m", True, WHITE)
-            txt_coins = font.render(f"Монеты: {coins}", True, YELLOW)
-            txt_hp = font.render(f"HP: {max(0, player.hp)}%", True, GREEN if player.hp > 30 else RED)
-            screen.blit(txt_dist, (20, 30))
-            screen.blit(txt_coins, (20, 70))
-            screen.blit(txt_hp, (WIDTH - 160, 30))
-
-        elif game_state == "MENU":
-            txt_title = font_large.render("SPACE SHOOTER", True, BLUE)
-            txt_start = font.render("Нажмите на экран для старта", True, WHITE)
-            screen.blit(txt_title, (WIDTH // 2 - txt_title.get_width() // 2, HEIGHT // 3))
-            screen.blit(txt_start, (WIDTH // 2 - txt_start.get_width() // 2, HEIGHT // 2))
+            player.draw()
 
         elif game_state == "GAMEOVER":
-            txt_over = font_large.render("GAME OVER", True, RED)
-            txt_restart = font.render("Нажмите, чтобы возродиться", True, WHITE)
-            screen.blit(txt_over, (WIDTH // 2 - txt_over.get_width() // 2, HEIGHT // 3))
-            screen.blit(txt_restart, (WIDTH // 2 - txt_restart.get_width() // 2, HEIGHT // 2))
+            if font_large:
+                title = font_large.render("ИГРА ОКОНЧЕНА", True, RED)
+                screen.blit(title, (WIDTH // 2 - title.get_width() // 2, HEIGHT * 0.2))
+
+            if font:
+                txt_res = font.render(f"Пройдено: {int(distance)}", True, WHITE)
+                txt_tot = font.render(f"Всего монет: {coins}", True, YELLOW)
+                screen.blit(txt_res, (WIDTH // 2 - txt_res.get_width() // 2, HEIGHT * 0.33))
+                screen.blit(txt_tot, (WIDTH // 2 - txt_tot.get_width() // 2, HEIGHT * 0.40))
+
+            draw_btn("ВОЗРОДИТЬСЯ (30)", 70, HEIGHT * 0.52, WIDTH - 140, 75, GREEN)
+            draw_btn("ЕЩЕ РАЗ", 70, HEIGHT * 0.63, WIDTH - 140, 75, BLUE)
+            draw_btn("В МЕНЮ", 70, HEIGHT * 0.74, WIDTH - 140, 75, GRAY)
+
+            if click_event:
+                bx, by = 70, HEIGHT * 0.52
+                if bx < touch_pos[0] < bx + (WIDTH - 140):
+                    if by < touch_pos[1] < by + 75 and coins >= 30:
+                        coins -= 30
+                        shield_time = 300
+                        enemies.clear()
+                        enemy_bullets.clear()
+                        player.x, player.y = float(WIDTH // 2), float(HEIGHT - 250)
+                        game_state = "PLAYING"
+                        safe_play(snd_respawn)  # Звук возрождения
+                    elif HEIGHT * 0.63 < touch_pos[1] < HEIGHT * 0.63 + 75:
+                        distance = 0.0
+                        run_coins = 0
+                        last_boss_fifty = 0
+                        enemies.clear()
+                        bullets.clear()
+                        enemy_bullets.clear()
+                        game_state = "PLAYING"
+                    elif HEIGHT * 0.74 < touch_pos[1] < HEIGHT * 0.74 + 75:
+                        game_state = "MENU"
 
         pygame.display.flip()
         clock.tick(60)
 
+except Exception as e:
+    print(f"Ошибка во время игры: {e}")
+finally:
     pygame.quit()
     sys.exit()
-
-# Функция покупки/улучшений (вызывается при необходимости в меню)
-def buy_upgrade(upgrade_type):
-    global coins, weapon_level, shield_time
-    if upgrade_type == "weapon" and coins >= 20:
-        coins -= 20
-        weapon_level += 1
-        safe_play(snd_upgrade)  # Звук улучшения
-    elif upgrade_type == "shield" and coins >= 15:
-        coins -= 15
-        shield_time += 300
-        safe_play(snd_shield)   # Звук активации щита
-    elif upgrade_type == "skin" and coins >= 50:
-        coins -= 50
-        safe_play(snd_buy)      # Звук покупки
-
-if __name__ == "__main__":
-    main()
