@@ -6,21 +6,43 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Build with Buildozer
-      uses: ArtemSBulgakov/buildozer-action@v1
-      id: buildozer
+    - name: Set up Python
+      uses: actions/setup-python@v5
       with:
-        command: buildozer android debug
-        buildozer_version: master
+        python-version: '3.10'
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libltdl-dev libffi-dev libssl-dev python3-pip git zip unzip autoconf libtool pkg-config zlib1g-dev ant
+        pip install --upgrade pip
+        pip install buildozer cython==0.29.33
+
+    - name: Auto-accept Android SDK Licenses
+      run: |
+        mkdir -p ~/.android
+        touch ~/.android/repositories.cfg
+        echo "y" | sudo apt-get install sdkmanager || true
+        yes | sdkmanager --licenses || true
+
+    - name: Build with Buildozer
+      run: |
+        buildozer android debug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: package
-        path: ${{ steps.buildozer.outputs.filename }}
+        path: bin/*.apk
