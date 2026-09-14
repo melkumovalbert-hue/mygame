@@ -25,7 +25,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -51,8 +51,10 @@ jobs:
           python -m pip install "Cython<3.4" buildozer
 
       - name: Build APK
+        env:
+          ACCEPT_ANDROID_SDK_LICENSE: "1"
         run: |
-          buildozer -v android debug
+          yes | buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
