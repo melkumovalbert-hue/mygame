@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    timeout-minutes: 180
 
     steps:
       - name: Checkout repository
@@ -28,45 +29,24 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential \
-            git \
-            ffmpeg \
-            libsdl2-dev \
-            libsdl2-image-dev \
-            libsdl2-mixer-dev \
-            libsdl2-ttf-dev \
-            libportmidi-dev \
-            libswscale-dev \
-            libavformat-dev \
-            libavcodec-dev \
-            zlib1g-dev \
-            libffi-dev \
-            libssl-dev \
-            autoconf \
-            automake \
-            libtool \
-            pkg-config \
-            cmake \
-            zip \
-            unzip
+            build-essential git cmake autoconf automake libtool pkg-config \
+            libffi-dev libssl-dev zlib1g-dev \
+            libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+            libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev \
+            zip unzip openjdk-17-jdk
 
-      - name: Install Buildozer & Dependencies
+      - name: Install Buildozer
         run: |
-          pip install --upgrade pip setuptools
-          pip install "cython<3.0.0" buildozer
+          pip install --upgrade pip setuptools wheel
+          pip install "Cython<3.0" buildozer
 
-      - name: Auto-accept Android SDK Licenses
+      - name: Build APK
         run: |
-          mkdir -p ~/.android
-          touch ~/.android/repositories.cfg
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          buildozer -v android debug
 
-      - name: Build APK with Buildozer
-        run: |
-          yes | buildozer -v android debug
-
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: python-app-apk
+          name: spaceshooter-apk
           path: bin/*.apk
+          if-no-files-found: error
