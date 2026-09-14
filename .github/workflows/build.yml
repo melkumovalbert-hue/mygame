@@ -3,14 +3,21 @@ name: Build APK
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -20,9 +27,9 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential libltdl-dev libffi-dev libssl-dev python3-pip git zip unzip autoconf libtool pkg-config zlib1g-dev ant openjdk-17-jdk
+        sudo apt-get install -y build-essential libltdl-dev libffi-dev libssl-dev python3-pip git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake
         pip install --upgrade pip
-        pip install buildozer cython==0.29.33
+        pip install buildozer cython==0.29.33 virtualenv
 
     - name: Build with Buildozer
       run: |
