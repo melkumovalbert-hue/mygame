@@ -1,4 +1,5 @@
 [app]
+
 title = Space Dodger
 package.name = spacedodger
 package.domain = org.albert
@@ -9,9 +10,14 @@ requirements = python3,pygame
 orientation = portrait
 fullscreen = 0
 
+# Версии для правильной сборки без ошибок
+android.api = 33
+android.minapi = 21
+android.ndk = 25b
+
 [buildozer]
 log_level = 2
 warn_on_root = 1
 
-[app:android]
+[app.android]
 android.accept_sdk_license = True
