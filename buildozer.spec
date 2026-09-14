@@ -2,30 +2,34 @@
 # Название игры
 title = SpaceDodger
 
-# Имя пакета (только маленькие буквы и без пробелов)
+# Имя пакета (только строчные буквы)
 package.name = spacedodger
 
-# Домен (можешь оставить так или вписать свой)
-package.domain = org.твоеимя
+# Домен приложения
+package.domain = org.game
 
-# Путь к исходникам (точка означает текущую папку)
+# Путь к исходному коду
 source.dir = .
 
-# Разрешенные форматы файлов
+# Расширения файлов для включения
 source.include_exts = py,png,jpg,ttf,wav,ogg
 
 # Версия приложения
 version = 1.0
 
-# Зависимости (самое главное для твоего кода)
+# Зависимости Python
 requirements = python3,pygame
 
-# Ориентация экрана (твоя игра вертикальная)
+# Настройки экрана
 orientation = portrait
 fullscreen = 1
 
-# Архитектуры процессоров (поддерживает большинство современных телефонов, включая твой Redmi)
+# Поддержка архитектур для Android
 android.archs = arm64-v8a, armeabi-v7a
 
-# Разрешить создание бэкапов
+# Разрешения и лицензии
 android.allow_backup = True
+android.accept_sdk_license = True
+android.api = 33
+android.minapi = 21
+p4a.branch = master
