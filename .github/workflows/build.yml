@@ -1,45 +1,67 @@
-[app]
+name: CI Build APK with Buildozer
 
-# Название приложения
-title = My Application
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
 
-# Имя пакета
-package.name = myapp
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-# Домен пакета
-package.domain = org.example
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-# Исходные файлы (код Python, изображения и т.д.)
-source.include_exts = py,png,jpg,kv,atlas
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
 
-# Главная точка входа
-source.main = main.py
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-# Версия приложения
-version = 0.1
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            git \
+            libltdl-dev \
+            libffi-dev \
+            libssl-dev \
+            python3-dev \
+            zlib1g-dev \
+            libncurses5 \
+            libstdc++6 \
+            libbz2-dev \
+            autoconf \
+            libtool \
+            pkg-config \
+            ant \
+            zip \
+            unzip
 
-# Требования (например, kivy, python3)
-requirements = python3,kivy
+      - name: Install Buildozer and dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade cython==0.29.36
+          pip install --upgrade buildozer
 
-# Ориентация экрана
-orientation = portrait
+      - name: Build with Buildozer
+        env:
+          BUILDER_ALLOW_ROOT: "1"
+        run: |
+          buildozer -v android debug
 
-# Поддерживаемые архитектуры (для универсального APK или только arm64)
-android.archs = arm64-v8a, armeabi-v7a
-
-# ВАЖНО: Актуальные версии API и NDK для стабильной сборки
-android.api = 33
-android.minapi = 21
-android.ndk = 25b
-android.sdk = 33
-
-# Автоматическое принятие лицензий Android SDK
-android.accept_sdk_license = True
-
-[buildozer]
-
-# Уровень логирования (1 = информация, 2 = отладка)
-log_level = 2
-
-# Предупреждение о запуске от root (для контейнеров GitHub Actions)
-warn_on_root = 1
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-apk
+          path: bin/*.apk
