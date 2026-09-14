@@ -3,10 +3,10 @@ title = SpaceShooter
 package.name = spaceshooter
 package.domain = org.test
 source.dir = .
-source.include_exts = py,png,jpg,kv,atlas,wav,mp3
+source.include_exts = py,png,jpg,kv,atlas,wav,mp3,ogg
 version = 0.1
 
-requirements = python3,kivy
+requirements = python3,pygame
 
 orientation = portrait
 osx.python_version = 3
