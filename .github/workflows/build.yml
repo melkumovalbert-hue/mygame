@@ -53,11 +53,6 @@ jobs:
           python -m pip install "Cython<3.4"
           python -m pip install buildozer
 
-      - name: Accept Android SDK licenses
-        run: |
-          mkdir -p "$HOME/.android"
-          touch "$HOME/.android/repositories.cfg"
-
       - name: Build APK
         env:
           ACCEPT_ANDROID_SDK_LICENSE: "1"
@@ -67,9 +62,8 @@ jobs:
       - name: Show generated APKs
         if: success()
         run: |
-          echo "===== APK FILES ====="
+          echo "APK FILES:"
           ls -lah bin/
-          echo "===================="
 
       - name: Upload APK
         if: success()
@@ -78,42 +72,3 @@ jobs:
           name: kosmicheskiy-uvorotchik-apk
           path: bin/*.apk
           if-no-files-found: error
-:::
-
-### 2. `buildozer.spec`
-
-Полностью замени содержимое на:
-
-:::writing{variant="standard" id="74106" title="buildozer.spec"}
-```ini
-[app]
-
-title = Космический уворотчик
-package.name = spacedodger
-package.domain = org.albert
-
-source.dir = .
-source.include_exts = py,png,jpg,jpeg,wav,mp3,ogg,ttf
-
-version = 1.0
-
-requirements = python3==3.10.12,hostpython3==3.10.12,pygame
-
-orientation = portrait
-fullscreen = 1
-
-android.api = 33
-android.minapi = 21
-android.ndk = 25b
-android.ndk_api = 21
-
-android.archs = arm64-v8a
-
-android.accept_sdk_license = True
-
-android.permissions = VIBRATE
-
-[buildozer]
-
-log_level = 2
-warn_on_root = 0
