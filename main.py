@@ -6,56 +6,129 @@ import random
 
 import pygame
 
-# ============================================================
+# =========================
 # ИНИЦИАЛИЗАЦИЯ
-# ============================================================
+# =========================
 
 try:
     pygame.mixer.pre_init(44100, -16, 1, 512)
     pygame.init()
-    pygame.font.init()
-except Exception as e:
-    print(f"Ошибка инициализации: {e}")
+except Exception:
+    pygame.init()
 
+WIDTH = 720
+HEIGHT = 1280
 
-# ============================================================
-# СИНТЕЗАТОР ЗВУКОВ
-# ============================================================
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("ЗВЁЗДНЫЙ УВОРОТ")
 
-def create_synth_sound(freq_start, freq_end, duration,
-                       wave_type='square', volume=0.3):
+clock = pygame.time.Clock()
+
+# =========================
+# ЦВЕТА
+# =========================
+
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+
+BLUE = (30, 100, 200)
+LIGHT_BLUE = (80, 180, 255)
+
+RED = (220, 50, 50)
+GREEN = (50, 220, 100)
+YELLOW = (255, 220, 50)
+PURPLE = (180, 70, 220)
+
+DARK_BLUE = (8, 8, 25)
+GRAY = (100, 100, 110)
+
+# =========================
+# ИКОНКА ИГРЫ
+# =========================
+
+try:
+    icon = pygame.Surface((64, 64), pygame.SRCALPHA)
+    icon.fill((8, 8, 25, 255))
+
+    pygame.draw.circle(icon, WHITE, (10, 10), 2)
+    pygame.draw.circle(icon, WHITE, (52, 13), 2)
+    pygame.draw.circle(icon, WHITE, (15, 48), 2)
+    pygame.draw.circle(icon, WHITE, (51, 50), 2)
+
+    pygame.draw.polygon(
+        icon,
+        (255, 100, 0),
+        [(27, 46), (32, 61), (37, 46)]
+    )
+
+    pygame.draw.polygon(
+        icon,
+        YELLOW,
+        [(29, 45), (32, 56), (35, 45)]
+    )
+
+    pygame.draw.polygon(
+        icon,
+        (30, 100, 200),
+        [(28, 30), (8, 48), (25, 43)]
+    )
+
+    pygame.draw.polygon(
+        icon,
+        (30, 100, 200),
+        [(36, 30), (56, 48), (39, 43)]
+    )
+
+    pygame.draw.polygon(
+        icon,
+        BLUE,
+        [(32, 8), (22, 43), (32, 49), (42, 43)]
+    )
+
+    pygame.draw.ellipse(
+        icon,
+        (200, 240, 255),
+        (27, 20, 10, 15)
+    )
+
+    pygame.display.set_icon(icon)
+
+except Exception:
+    pass
+
+# =========================
+# ШРИФТЫ
+# =========================
+
+try:
+    FONT_BIG = pygame.font.Font(None, 90)
+    FONT_MEDIUM = pygame.font.Font(None, 60)
+    FONT_SMALL = pygame.font.Font(None, 40)
+except Exception:
+    FONT_BIG = pygame.font.SysFont(None, 90)
+    FONT_MEDIUM = pygame.font.SysFont(None, 60)
+    FONT_SMALL = pygame.font.SysFont(None, 40)
+
+# =========================
+# ЗВУКИ
+# =========================
+
+def make_sound(freq, duration, volume=0.25):
     try:
         sample_rate = 44100
-        n_samples = int(sample_rate * duration)
-        buf = array.array('h')
+        count = int(sample_rate * duration)
 
-        for i in range(n_samples):
-            t = float(i) / sample_rate
-            progress = float(i) / n_samples
-            freq = freq_start + (freq_end - freq_start) * progress
+        buf = array.array("h")
 
-            if wave_type == 'square':
-                val = 32767 if math.sin(
-                    2 * math.pi * freq * t
-                ) > 0 else -32768
-
-            elif wave_type == 'saw':
-                val = int(
-                    32767 *
-                    (2 * (t * freq - math.floor(t * freq + 0.5)))
+        for i in range(count):
+            value = int(
+                32767
+                * volume
+                * math.sin(
+                    2 * math.pi * freq * i / sample_rate
                 )
-
-            elif wave_type == 'noise':
-                val = random.randint(-32768, 32767)
-
-            else:
-                val = int(
-                    32767 *
-                    math.sin(2 * math.pi * freq * t)
-                )
-
-            env = 1.0 - progress
-            buf.append(int(val * volume * env))
+            )
+            buf.append(value)
 
         return pygame.mixer.Sound(buffer=buf.tobytes())
 
@@ -63,1259 +136,1307 @@ def create_synth_sound(freq_start, freq_end, duration,
         return None
 
 
-def safe_play(sound):
-    if sound:
-        try:
-            sound.play()
-        except Exception:
-            pass
-
-
-snd_shoot = create_synth_sound(
-    800, 200, 0.06,
-    wave_type='square',
-    volume=0.15
-)
-
-snd_kill = create_synth_sound(
-    250, 40, 0.14,
-    wave_type='noise',
-    volume=0.4
-)
-
-snd_shop = create_synth_sound(
-    440, 660, 0.15,
-    wave_type='sine',
-    volume=0.3
-)
-
-snd_respawn = create_synth_sound(
-    220, 700, 0.35,
-    wave_type='sine',
-    volume=0.4
-)
-
-
-# ============================================================
-# ЭКРАН
-# ============================================================
-
 try:
-    WIDTH, HEIGHT = 720, 1280
-
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-
-    # Новое название игры
-    pygame.display.set_caption("ЗВЁЗДНЫЙ УВОРОТ")
-
-    clock = pygame.time.Clock()
-
-    BLACK = (10, 10, 25)
-    WHITE = (255, 255, 255)
-    RED = (230, 50, 50)
-    GREEN = (50, 230, 50)
-    BLUE = (50, 150, 255)
-    YELLOW = (255, 215, 0)
-    PURPLE = (147, 112, 219)
-    GRAY = (50, 50, 60)
-    DARK_GRAY = (30, 30, 40)
+    snd_shoot = make_sound(700, 0.05)
+    snd_kill = make_sound(250, 0.12)
+    snd_shop = make_sound(500, 0.15)
+    snd_respawn = make_sound(900, 0.15)
+except Exception:
+    snd_shoot = None
+    snd_kill = None
+    snd_shop = None
+    snd_respawn = None
 
 
-    # ========================================================
-    # ИКОНКА КОСМОЛЁТА
-    # ========================================================
-
+def play_sound(sound):
     try:
-        icon = pygame.Surface((64, 64), pygame.SRCALPHA)
-
-        # космос
-        icon.fill((8, 8, 25, 255))
-
-        # маленькие звёзды
-        pygame.draw.circle(icon, WHITE, (10, 10), 2)
-        pygame.draw.circle(icon, WHITE, (52, 13), 2)
-        pygame.draw.circle(icon, WHITE, (15, 48), 2)
-        pygame.draw.circle(icon, WHITE, (51, 50), 2)
-
-        # огонь двигателя
-        pygame.draw.polygon(
-            icon,
-            (255, 100, 0),
-            [(27, 46), (32, 61), (37, 46)]
-        )
-
-        pygame.draw.polygon(
-            icon,
-            YELLOW,
-            [(29, 45), (32, 56), (35, 45)]
-        )
-
-        # крылья
-        pygame.draw.polygon(
-            icon,
-            (30, 100, 200),
-            [(28, 30), (8, 48), (25, 43)]
-        )
-
-        pygame.draw.polygon(
-            icon,
-            (30, 100, 200),
-            [(36, 30), (56, 48), (39, 43)]
-        )
-
-        # корпус
-        pygame.draw.polygon(
-            icon,
-            BLUE,
-            [(32, 8), (22, 43), (32, 49), (42, 43)]
-        )
-
-        # кабина
-        pygame.draw.ellipse(
-            icon,
-            (200, 240, 255),
-            (27, 20, 10, 15)
-        )
-
-        pygame.display.set_icon(icon)
-
+        if sound:
+            sound.play()
     except Exception:
         pass
 
 
-    # ========================================================
-    # ШРИФТЫ
-    # ========================================================
+# =========================
+# СОСТОЯНИЯ
+# =========================
 
-    def get_safe_font(size):
-        try:
-            return pygame.font.Font(None, size)
-        except Exception:
-            return None
+MENU = "menu"
+SHOP = "shop"
+PLAYING = "playing"
+GAMEOVER = "gameover"
+
+game_state = MENU
+
+# =========================
+# ПЕРЕМЕННЫЕ
+# =========================
+
+coins = 0
+run_coins = 0
+
+distance = 0.0
+
+# Босс каждые 100 очков
+last_boss_hundred = 0
+
+weapon_level = 1
+shield_time = 0
+
+current_skin = "green"
+
+# =========================
+# ИГРОК
+# =========================
+
+player = pygame.Rect(
+    WIDTH // 2 - 35,
+    HEIGHT - 250,
+    70,
+    80
+)
+
+player_speed = 12
+
+# =========================
+# СПИСКИ
+# =========================
+
+bullets = []
+enemies = []
+enemy_bullets = []
+
+# =========================
+# ЗВЁЗДЫ
+# =========================
+
+stars = []
+
+for _ in range(100):
+    stars.append([
+        random.randint(0, WIDTH),
+        random.randint(0, HEIGHT),
+        random.randint(1, 4)
+    ])
 
 
-    font = get_safe_font(36)
-    font_large = get_safe_font(52)
+# =========================
+# РИСОВАНИЕ ИГРОКА
+# =========================
+
+def draw_player():
+
+    color = GREEN
+
+    if current_skin == "blue":
+        color = BLUE
+    elif current_skin == "red":
+        color = RED
+    elif current_skin == "yellow":
+        color = YELLOW
+
+    x = player.centerx
+    y = player.centery
+
+    pygame.draw.polygon(
+        screen,
+        color,
+        [
+            (x - 25, y),
+            (x - 60, y + 40),
+            (x - 15, y + 30)
+        ]
+    )
+
+    pygame.draw.polygon(
+        screen,
+        color,
+        [
+            (x + 25, y),
+            (x + 60, y + 40),
+            (x + 15, y + 30)
+        ]
+    )
+
+    pygame.draw.polygon(
+        screen,
+        color,
+        [
+            (x, y - 40),
+            (x - 25, y + 35),
+            (x, y + 50),
+            (x + 25, y + 35)
+        ]
+    )
+
+    pygame.draw.ellipse(
+        screen,
+        LIGHT_BLUE,
+        (
+            x - 10,
+            y - 20,
+            20,
+            30
+        )
+    )
+
+    pygame.draw.polygon(
+        screen,
+        RED,
+        [
+            (x - 12, y + 42),
+            (x, y + 65),
+            (x + 12, y + 42)
+        ]
+    )
 
 
-    # ========================================================
-    # ПРОГРЕСС
-    # ========================================================
+# =========================
+# ПУЛЯ
+# =========================
+
+class Bullet:
+
+    def __init__(self, x, y):
+
+        self.rect = pygame.Rect(
+            int(x - 5),
+            int(y),
+            10,
+            25
+        )
+
+        self.speed = 22
+
+    def update(self):
+        self.rect.y -= self.speed
+
+    def draw(self):
+        pygame.draw.rect(
+            screen,
+            YELLOW,
+            self.rect
+        )
+
+
+# =========================
+# ВРАЖЕСКАЯ ПУЛЯ
+# =========================
+
+class EnemyBullet:
+
+    def __init__(self, x, y, speed=8):
+
+        self.rect = pygame.Rect(
+            int(x - 5),
+            int(y),
+            10,
+            25
+        )
+
+        self.speed = speed
+
+    def update(self):
+        self.rect.y += self.speed
+
+    def draw(self):
+        pygame.draw.rect(
+            screen,
+            RED,
+            self.rect
+        )
+
+
+# =========================
+# ВРАГ
+# =========================
+
+class Enemy:
+
+    def __init__(self, enemy_type):
+
+        self.enemy_type = enemy_type
+
+        if enemy_type == "normal":
+
+            self.width = 70
+            self.height = 60
+
+            self.hp = 4
+            self.max_hp = 4
+
+            self.speed = random.uniform(2, 4)
+
+            self.color = RED
+            self.reward = 1
+
+        elif enemy_type == "elite":
+
+            self.width = 95
+            self.height = 80
+
+            self.hp = 8
+            self.max_hp = 8
+
+            self.speed = random.uniform(2, 3)
+
+            self.color = PURPLE
+            self.reward = 3
+
+        else:
+
+            self.width = 180
+            self.height = 120
+
+            self.hp = 50
+            self.max_hp = 50
+
+            self.speed = 1
+
+            self.color = YELLOW
+            self.reward = 10
+
+        self.x = random.randint(
+            self.width // 2,
+            WIDTH - self.width // 2
+        )
+
+        self.y = -self.height
+
+        self.rect = pygame.Rect(
+            int(self.x - self.width // 2),
+            int(self.y),
+            self.width,
+            self.height
+        )
+
+        self.shoot_timer = random.randint(40, 100)
+
+    def update(self):
+
+        if self.enemy_type == "boss":
+
+            if self.y < 200:
+                self.y += self.speed
+
+            self.shoot_timer -= 1
+
+            if self.shoot_timer <= 0:
+
+                enemy_bullets.append(
+                    EnemyBullet(
+                        self.rect.centerx,
+                        self.rect.bottom,
+                        8
+                    )
+                )
+
+                enemy_bullets.append(
+                    EnemyBullet(
+                        self.rect.centerx - 45,
+                        self.rect.bottom,
+                        7
+                    )
+                )
+
+                enemy_bullets.append(
+                    EnemyBullet(
+                        self.rect.centerx + 45,
+                        self.rect.bottom,
+                        7
+                    )
+                )
+
+                self.shoot_timer = 90
+
+        else:
+            self.y += self.speed
+
+        self.rect.x = int(
+            self.x - self.width // 2
+        )
+
+        self.rect.y = int(self.y)
+
+    def draw(self):
+
+        pygame.draw.rect(
+            screen,
+            self.color,
+            self.rect,
+            border_radius=15
+        )
+
+        eye_y = self.rect.y + self.height // 3
+
+        pygame.draw.circle(
+            screen,
+            WHITE,
+            (
+                self.rect.x + self.width // 3,
+                eye_y
+            ),
+            8
+        )
+
+        pygame.draw.circle(
+            screen,
+            WHITE,
+            (
+                self.rect.x + self.width * 2 // 3,
+                eye_y
+            ),
+            8
+        )
+
+        pygame.draw.circle(
+            screen,
+            BLACK,
+            (
+                self.rect.x + self.width // 3,
+                eye_y
+            ),
+            4
+        )
+
+        pygame.draw.circle(
+            screen,
+            BLACK,
+            (
+                self.rect.x + self.width * 2 // 3,
+                eye_y
+            ),
+            4
+        )
+
+        hp_width = self.width
+
+        current_width = int(
+            hp_width * self.hp / self.max_hp
+        )
+
+        bar_y = self.rect.y - 18 if self.enemy_type == "boss" else self.rect.y - 12
+        bar_h = 10 if self.enemy_type == "boss" else 7
+
+        pygame.draw.rect(
+            screen,
+            RED,
+            (
+                self.rect.x,
+                bar_y,
+                hp_width,
+                bar_h
+            )
+        )
+
+        pygame.draw.rect(
+            screen,
+            GREEN,
+            (
+                self.rect.x,
+                bar_y,
+                current_width,
+                bar_h
+            )
+        )
+
+
+# =========================
+# КНОПКА
+# =========================
+
+def draw_btn(text, x, y, w, h, color):
+
+    rect = pygame.Rect(
+        int(x),
+        int(y),
+        int(w),
+        int(h)
+    )
+
+    pygame.draw.rect(
+        screen,
+        color,
+        rect,
+        border_radius=20
+    )
+
+    txt = FONT_SMALL.render(
+        text,
+        True,
+        WHITE
+    )
+
+    screen.blit(
+        txt,
+        (
+            rect.centerx - txt.get_width() // 2,
+            rect.centery - txt.get_height() // 2
+        )
+    )
+
+    return rect
+
+
+# =========================
+# СБРОС ПРОГРЕССА
+# =========================
+
+def reset_progress():
+
+    global coins
+    global run_coins
+    global distance
+    global last_boss_hundred
+    global weapon_level
+    global shield_time
+    global current_skin
+    global game_state
 
     coins = 0
     run_coins = 0
     distance = 0.0
-    last_boss_fifty = 0
+
+    last_boss_hundred = 0
 
     weapon_level = 1
     shield_time = 0
 
-    game_state = "MENU"
     current_skin = "green"
 
+    bullets.clear()
+    enemies.clear()
+    enemy_bullets.clear()
 
-    # ========================================================
-    # ИГРОК
-    # ========================================================
-
-    class Player:
-
-        def __init__(self):
-            self.x = float(WIDTH // 2)
-            self.y = float(HEIGHT - 250)
-
-            self.width = 60
-            self.height = 60
-
-        def draw(self):
-
-            if current_skin == "blue":
-                main_color = (30, 144, 255)
-                wing_color = (0, 100, 200)
-                engine_color = (0, 255, 255)
-
-            elif current_skin == "red":
-                main_color = (255, 69, 0)
-                wing_color = (178, 34, 34)
-                engine_color = (255, 255, 0)
-
-            elif current_skin == "yellow":
-                main_color = (255, 215, 0)
-                wing_color = (218, 165, 32)
-                engine_color = (255, 100, 0)
-
-            else:
-                main_color = (50, 205, 50)
-                wing_color = (34, 139, 34)
-                engine_color = (0, 255, 127)
-
-            px, py = int(self.x), int(self.y)
-
-            # двигатели
-            pygame.draw.polygon(
-                screen,
-                engine_color,
-                [
-                    (px - 15, py + 50),
-                    (px - 5, py + 70),
-                    (px - 25, py + 70)
-                ]
-            )
-
-            pygame.draw.polygon(
-                screen,
-                engine_color,
-                [
-                    (px + 15, py + 50),
-                    (px + 5, py + 70),
-                    (px + 25, py + 70)
-                ]
-            )
-
-            # крылья
-            pygame.draw.polygon(
-                screen,
-                wing_color,
-                [
-                    (px, py + 10),
-                    (px - 45, py + 55),
-                    (px - 15, py + 45)
-                ]
-            )
-
-            pygame.draw.polygon(
-                screen,
-                wing_color,
-                [
-                    (px, py + 10),
-                    (px + 45, py + 55),
-                    (px + 15, py + 45)
-                ]
-            )
-
-            # корпус
-            pygame.draw.polygon(
-                screen,
-                main_color,
-                [
-                    (px, py),
-                    (px - 20, py + 55),
-                    (px + 20, py + 55)
-                ]
-            )
-
-            # кабина
-            pygame.draw.ellipse(
-                screen,
-                WHITE,
-                (px - 8, py + 20, 16, 25)
-            )
-
-            # щит
-            if shield_time > 0:
-                pygame.draw.circle(
-                    screen,
-                    BLUE,
-                    (px, py + 30),
-                    65,
-                    4
-                )
-
-
-    # ========================================================
-    # ПУЛЯ ИГРОКА
-    # ========================================================
+    player.x = WIDTH // 2 - player.width // 2
+    player.y = HEIGHT - 250
 
-    class Bullet:
+    game_state = MENU
 
-        def __init__(self, x, y):
-            self.x = x
-            self.y = y
 
-        def update(self):
-            self.y -= 22
+# =========================
+# НАЧАЛО ИГРЫ
+# =========================
 
-        def draw(self):
-            pygame.draw.rect(
-                screen,
-                YELLOW,
-                (
-                    int(self.x - 4),
-                    int(self.y - 15),
-                    8,
-                    20
-                ),
-                border_radius=3
-            )
+def start_game():
 
+    global run_coins
+    global distance
+    global last_boss_hundred
+    global shield_time
+    global game_state
 
-    # ========================================================
-    # ПУЛЯ ВРАГА
-    # ========================================================
+    run_coins = 0
+    distance = 0.0
 
-    class EnemyBullet:
+    last_boss_hundred = 0
 
-        def __init__(self, x, y, speed=8):
-            self.x = x
-            self.y = y
-            self.speed = speed
+    shield_time = 0
 
-        def update(self):
-            self.y += self.speed
+    bullets.clear()
+    enemies.clear()
+    enemy_bullets.clear()
 
-        def draw(self):
-            pygame.draw.rect(
-                screen,
-                RED,
-                (
-                    int(self.x - 4),
-                    int(self.y),
-                    8,
-                    16
-                ),
-                border_radius=3
-            )
+    player.x = WIDTH // 2 - player.width // 2
+    player.y = HEIGHT - 250
 
+    game_state = PLAYING
 
-    # ========================================================
-    # ВРАГ
-    # ========================================================
 
-    class Enemy:
+# =========================
+# МЕНЮ
+# =========================
 
-        def __init__(self, type_str):
+def draw_menu():
 
-            self.type = type_str
+    screen.fill(DARK_BLUE)
 
-            self.x = random.randint(80, WIDTH - 80)
-            self.y = -80
+    for star in stars:
 
-            self.shoot_timer = random.randint(90, 160)
-
-            if self.type == 'normal':
-
-                self.width = 70
-                self.height = 60
-                self.hp = 4
-                self.speed = random.randint(2, 4)
-                self.color = RED
-                self.reward = 1
-
-            elif self.type == 'elite':
-
-                self.width = 95
-                self.height = 80
-                self.hp = 8
-                self.speed = 2
-                self.color = PURPLE
-                self.reward = 3
-
-            elif self.type == 'boss':
-
-                self.width = 180
-                self.height = 120
-                self.hp = 50
-                self.speed = 1
-                self.color = YELLOW
-                self.reward = 10
-
-                self.is_stopped = False
-                self.shoot_timer = 50
-
-
-        def update(self):
-
-            if self.type == 'boss':
-
-                if not self.is_stopped:
-
-                    self.y += self.speed
-
-                    if self.y >= 200:
-                        self.is_stopped = True
-
-                self.shoot_timer -= 1
-
-                if self.shoot_timer <= 0:
-
-                    self.shoot_timer = 65
-
-                    enemy_bullets.append(
-                        EnemyBullet(
-                            self.x - 40,
-                            self.y + self.height // 2,
-                            7
-                        )
-                    )
-
-                    enemy_bullets.append(
-                        EnemyBullet(
-                            self.x,
-                            self.y + self.height // 2,
-                            8
-                        )
-                    )
-
-                    enemy_bullets.append(
-                        EnemyBullet(
-                            self.x + 40,
-                            self.y + self.height // 2,
-                            7
-                        )
-                    )
-
-            else:
-
-                self.y += self.speed
-
-                self.shoot_timer -= 1
-
-                if self.shoot_timer <= 0:
-
-                    self.shoot_timer = random.randint(100, 180)
-
-                    enemy_bullets.append(
-                        EnemyBullet(
-                            self.x,
-                            self.y + self.height // 2
-                        )
-                    )
-
-
-        def draw(self):
-
-            ex, ey = int(self.x), int(self.y)
-
-            if self.type == 'normal':
-
-                pygame.draw.ellipse(
-                    screen,
-                    self.color,
-                    (ex - 35, ey - 15, 70, 30)
-                )
-
-                pygame.draw.circle(
-                    screen,
-                    YELLOW,
-                    (ex, ey),
-                    6
-                )
-
-            elif self.type == 'elite':
-
-                pygame.draw.polygon(
-                    screen,
-                    self.color,
-                    [
-                        (ex, ey + 30),
-                        (ex - 45, ey - 20),
-                        (ex + 45, ey - 20)
-                    ]
-                )
-
-            elif self.type == 'boss':
-
-                pygame.draw.rect(
-                    screen,
-                    DARK_GRAY,
-                    (
-                        ex - 90,
-                        ey - 45,
-                        180,
-                        90
-                    ),
-                    border_radius=15
-                )
-
-                pygame.draw.rect(
-                    screen,
-                    self.color,
-                    (
-                        ex - 60,
-                        ey - 60,
-                        120,
-                        30
-                    ),
-                    border_radius=8
-                )
-
-
-    # ========================================================
-    # ОБЪЕКТЫ
-    # ========================================================
-
-    player = Player()
-
-    bullets = []
-    enemy_bullets = []
-    enemies = []
-
-    touch_pos = (
-        WIDTH // 2,
-        HEIGHT - 250
-    )
-
-    is_touching = False
-    fire_cooldown = 0
-
-    running = True
-
-
-    # ========================================================
-    # КНОПКА
-    # ========================================================
-
-    def draw_btn(text, x, y, w, h, col=GRAY):
-
-        pygame.draw.rect(
+        pygame.draw.circle(
             screen,
-            col,
-            (x, y, w, h),
-            border_radius=15
+            WHITE,
+            (
+                int(star[0]),
+                int(star[1])
+            ),
+            star[2]
         )
 
-        if font:
+    title = FONT_BIG.render(
+        "ЗВЁЗДНЫЙ УВОРОТ",
+        True,
+        WHITE
+    )
 
-            txt = font.render(
-                text,
-                True,
-                WHITE
+    screen.blit(
+        title,
+        (
+            WIDTH // 2 - title.get_width() // 2,
+            130
+        )
+    )
+
+    coins_text = FONT_MEDIUM.render(
+        f"Монеты: {coins}",
+        True,
+        YELLOW
+    )
+
+    screen.blit(
+        coins_text,
+        (
+            WIDTH // 2 - coins_text.get_width() // 2,
+            260
+        )
+    )
+
+    draw_btn(
+        "ИГРАТЬ",
+        100,
+        400,
+        WIDTH - 200,
+        100,
+        GREEN
+    )
+
+    draw_btn(
+        "МАГАЗИН",
+        100,
+        520,
+        WIDTH - 200,
+        90,
+        BLUE
+    )
+
+    draw_btn(
+        "СБРОС ПРОГРЕССА",
+        100,
+        HEIGHT * 0.64,
+        WIDTH - 200,
+        90,
+        RED
+    )
+
+
+# =========================
+# МАГАЗИН
+# =========================
+
+def draw_shop():
+
+    screen.fill(DARK_BLUE)
+
+    title = FONT_BIG.render(
+        "МАГАЗИН",
+        True,
+        WHITE
+    )
+
+    screen.blit(
+        title,
+        (
+            WIDTH // 2 - title.get_width() // 2,
+            70
+        )
+    )
+
+    coins_text = FONT_MEDIUM.render(
+        f"Монеты: {coins}",
+        True,
+        YELLOW
+    )
+
+    screen.blit(
+        coins_text,
+        (
+            WIDTH // 2 - coins_text.get_width() // 2,
+            180
+        )
+    )
+
+    draw_btn(
+        "СИНИЙ СКИН - 40",
+        80,
+        300,
+        WIDTH - 160,
+        80,
+        BLUE
+    )
+
+    draw_btn(
+        "КРАСНЫЙ СКИН - 60",
+        80,
+        400,
+        WIDTH - 160,
+        80,
+        RED
+    )
+
+    draw_btn(
+        "ЖЁЛТЫЙ СКИН - 100",
+        80,
+        500,
+        WIDTH - 160,
+        80,
+        YELLOW
+    )
+
+    draw_btn(
+        "УЛУЧШИТЬ ОРУЖИЕ",
+        80,
+        650,
+        WIDTH - 160,
+        80,
+        PURPLE
+    )
+
+    weapon_text = FONT_SMALL.render(
+        f"Оружие: {weapon_level}/3",
+        True,
+        WHITE
+    )
+
+    screen.blit(
+        weapon_text,
+        (
+            WIDTH // 2 - weapon_text.get_width() // 2,
+            750
+        )
+    )
+
+    draw_btn(
+        "ЩИТ 10 СЕК - 45",
+        80,
+        830,
+        WIDTH - 160,
+        80,
+        GREEN
+    )
+
+    draw_btn(
+        "НАЗАД",
+        100,
+        1050,
+        WIDTH - 200,
+        80,
+        GRAY
+    )
+
+
+# =========================
+# GAME OVER
+# =========================
+
+def draw_gameover():
+
+    screen.fill(DARK_BLUE)
+
+    title = FONT_BIG.render(
+        "ИГРА ОКОНЧЕНА",
+        True,
+        RED
+    )
+
+    screen.blit(
+        title,
+        (
+            WIDTH // 2 - title.get_width() // 2,
+            180
+        )
+    )
+
+    score_text = FONT_MEDIUM.render(
+        f"Очки: {int(distance)}",
+        True,
+        WHITE
+    )
+
+    screen.blit(
+        score_text,
+        (
+            WIDTH // 2 - score_text.get_width() // 2,
+            320
+        )
+    )
+
+    coins_text = FONT_MEDIUM.render(
+        f"+{run_coins} монет",
+        True,
+        YELLOW
+    )
+
+    screen.blit(
+        coins_text,
+        (
+            WIDTH // 2 - coins_text.get_width() // 2,
+            400
+        )
+    )
+
+    draw_btn(
+        "ВОЗРОДИТЬСЯ - 30",
+        80,
+        600,
+        WIDTH - 160,
+        90,
+        GREEN
+    )
+
+    draw_btn(
+        "ЗАНОВО",
+        80,
+        720,
+        WIDTH - 160,
+        90,
+        BLUE
+    )
+
+    draw_btn(
+        "В МЕНЮ",
+        80,
+        840,
+        WIDTH - 160,
+        90,
+        GRAY
+    )
+
+
+# =========================
+# ГЛАВНЫЙ ЦИКЛ
+# =========================
+
+running = True
+
+while running:
+
+    clock.tick(60)
+
+    touch_pos = None
+
+    for event in pygame.event.get():
+
+        if event.type == pygame.QUIT:
+            running = False
+
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+
+            touch_pos = event.pos
+
+        elif event.type == pygame.FINGERDOWN:
+
+            touch_pos = (
+                int(event.x * WIDTH),
+                int(event.y * HEIGHT)
             )
 
-            screen.blit(
-                txt,
-                (
-                    x + (w - txt.get_width()) // 2,
-                    y + (h - txt.get_height()) // 2
-                )
-            )
+    # =====================
+    # МЕНЮ
+    # =====================
 
+    if game_state == MENU:
 
-    # ========================================================
-    # ПОЛНЫЙ СБРОС ПРОГРЕССА
-    # ========================================================
+        draw_menu()
 
-    def reset_progress():
+        if touch_pos:
 
-        global coins
-        global run_coins
-        global distance
-        global last_boss_fifty
-        global weapon_level
-        global shield_time
-        global current_skin
-        global game_state
+            bx = 100
+            bw = WIDTH - 200
 
-        coins = 0
-        run_coins = 0
-        distance = 0.0
-        last_boss_fifty = 0
+            if (
+                bx < touch_pos[0] < bx + bw
+                and 400 < touch_pos[1] < 500
+            ):
+                start_game()
 
-        weapon_level = 1
-        shield_time = 0
+            elif (
+                bx < touch_pos[0] < bx + bw
+                and 520 < touch_pos[1] < 610
+            ):
+                game_state = SHOP
 
-        current_skin = "green"
+            elif (
+                bx < touch_pos[0] < bx + bw
+                and HEIGHT * 0.64
+                < touch_pos[1]
+                < HEIGHT * 0.64 + 90
+            ):
+                reset_progress()
 
-        bullets.clear()
-        enemies.clear()
-        enemy_bullets.clear()
+    # =====================
+    # МАГАЗИН
+    # =====================
 
-        player.x = float(WIDTH // 2)
-        player.y = float(HEIGHT - 250)
+    elif game_state == SHOP:
 
-        game_state = "MENU"
+        draw_shop()
 
+        if touch_pos:
 
-    # ========================================================
-    # ГЛАВНЫЙ ЦИКЛ
-    # ========================================================
+            bx = 80
+            bw = WIDTH - 160
 
-    while running:
+            if (
+                bx < touch_pos[0] < bx + bw
+                and 300 < touch_pos[1] < 380
+            ):
 
-        screen.fill(BLACK)
+                if coins >= 40:
+                    coins -= 40
+                    current_skin = "blue"
+                    play_sound(snd_shop)
 
-        click_event = False
+            elif (
+                bx < touch_pos[0] < bx + bw
+                and 400 < touch_pos[1] < 480
+            ):
 
-        for event in pygame.event.get():
+                if coins >= 60:
+                    coins -= 60
+                    current_skin = "red"
+                    play_sound(snd_shop)
 
-            if event.type == pygame.QUIT:
-                running = False
+            elif (
+                bx < touch_pos[0] < bx + bw
+                and 500 < touch_pos[1] < 580
+            ):
 
-            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if coins >= 100:
+                    coins -= 100
+                    current_skin = "yellow"
+                    play_sound(snd_shop)
 
-                click_event = True
-                is_touching = True
-                touch_pos = event.pos
+            elif (
+                bx < touch_pos[0] < bx + bw
+                and 650 < touch_pos[1] < 730
+            ):
 
-            elif event.type == pygame.MOUSEBUTTONUP:
+                if weapon_level == 1:
+                    cost = 50
+                elif weapon_level == 2:
+                    cost = 70
+                else:
+                    cost = 80
 
-                is_touching = False
-
-            elif event.type == pygame.MOUSEMOTION:
-
-                if is_touching:
-                    touch_pos = event.pos
-
-
-        # ====================================================
-        # МЕНЮ
-        # ====================================================
-
-        if game_state == "MENU":
-
-            if font_large:
-
-                title = font_large.render(
-                    "ЗВЁЗДНЫЙ УВОРОТ",
-                    True,
-                    WHITE
-                )
-
-                screen.blit(
-                    title,
-                    (
-                        WIDTH // 2 - title.get_width() // 2,
-                        HEIGHT // 5
-                    )
-                )
-
-
-            draw_btn(
-                "ИГРАТЬ",
-                100,
-                HEIGHT * 0.40,
-                WIDTH - 200,
-                90,
-                BLUE
-            )
-
-            draw_btn(
-                "МАГАЗИН",
-                100,
-                HEIGHT * 0.52,
-                WIDTH - 200,
-                90,
-                GRAY
-            )
-
-            # НОВАЯ КНОПКА СБРОСА
-            draw_btn(
-                "СБРОС ПРОГРЕССА",
-                100,
-                HEIGHT * 0.64,
-                WIDTH - 200,
-                90,
-                RED
-            )
-
-
-            if click_event:
-
-                bx = 100
-                bw = WIDTH - 200
-
-                # ИГРАТЬ
                 if (
-                    bx < touch_pos[0] < bx + bw
-                    and HEIGHT * 0.40 < touch_pos[1] < HEIGHT * 0.40 + 90
+                    weapon_level < 3
+                    and coins >= cost
                 ):
+                    coins -= cost
+                    weapon_level += 1
+                    play_sound(snd_shop)
 
-                    game_state = "PLAYING"
+            elif (
+                bx < touch_pos[0] < bx + bw
+                and 830 < touch_pos[1] < 910
+            ):
 
-                    distance = 0.0
-                    run_coins = 0
-                    last_boss_fifty = 0
+                if coins >= 45:
+                    coins -= 45
+                    shield_time = 600
+                    play_sound(snd_shop)
 
-                    enemies.clear()
-                    bullets.clear()
-                    enemy_bullets.clear()
+            elif (
+                100 < touch_pos[0] < WIDTH - 100
+                and 1050 < touch_pos[1] < 1130
+            ):
 
-                    player.x = float(WIDTH // 2)
-                    player.y = float(HEIGHT - 250)
+                game_state = MENU
 
+    # =====================
+    # ИГРА
+    # =====================
 
-                # МАГАЗИН
-                elif (
-                    bx < touch_pos[0] < bx + bw
-                    and HEIGHT * 0.52 < touch_pos[1] < HEIGHT * 0.52 + 90
-                ):
+    elif game_state == PLAYING:
 
-                    game_state = "SHOP"
+        if touch_pos:
 
-                    safe_play(snd_shop)
+            target_x = (
+                touch_pos[0]
+                - player.width // 2
+            )
 
+            player.x += (
+                target_x - player.x
+            ) * 0.35
 
-                # СБРОС
-                elif (
-                    bx < touch_pos[0] < bx + bw
-                    and HEIGHT * 0.64 < touch_pos[1] < HEIGHT * 0.64 + 90
-                ):
+            if player.x < 0:
+                player.x = 0
 
-                    reset_progress()
+            if player.x > WIDTH - player.width:
+                player.x = WIDTH - player.width
 
+        # Автоматическая стрельба
 
-        # ====================================================
-        # МАГАЗИН
-        # ====================================================
-
-        elif game_state == "SHOP":
-
-            if font_large:
-
-                title = font_large.render(
-                    "МАГАЗИН",
-                    True,
-                    WHITE
-                )
-
-                screen.blit(
-                    title,
-                    (
-                        WIDTH // 2 - title.get_width() // 2,
-                        60
-                    )
-                )
-
-
-            if font:
-
-                t_coins = font.render(
-                    f"Монеты: {coins}",
-                    True,
-                    YELLOW
-                )
-
-                screen.blit(
-                    t_coins,
-                    (60, 140)
-                )
-
+        if random.randint(1, 8) == 1:
 
             if weapon_level == 1:
 
-                weapon_cost = 50
-                weapon_text = "Улучшить пушку (50)"
+                bullets.append(
+                    Bullet(
+                        player.centerx,
+                        player.top
+                    )
+                )
 
             elif weapon_level == 2:
 
-                weapon_cost = 70
-                weapon_text = "Улучшить пушку (70)"
+                bullets.append(
+                    Bullet(
+                        player.centerx - 18,
+                        player.top
+                    )
+                )
 
-            elif weapon_level == 3:
-
-                weapon_cost = 80
-                weapon_text = "Улучшить пушку (80)"
+                bullets.append(
+                    Bullet(
+                        player.centerx + 18,
+                        player.top
+                    )
+                )
 
             else:
 
-                weapon_cost = 999999
-                weapon_text = "Пушка максимальна"
+                bullets.append(
+                    Bullet(
+                        player.centerx,
+                        player.top
+                    )
+                )
 
+                bullets.append(
+                    Bullet(
+                        player.centerx - 22,
+                        player.top
+                    )
+                )
 
-            draw_btn(
-                "Синий скин (40)",
-                70, 270,
-                WIDTH - 140,
-                75
+                bullets.append(
+                    Bullet(
+                        player.centerx + 22,
+                        player.top
+                    )
+                )
+
+            play_sound(snd_shoot)
+
+        # =====================
+        # ОЧКИ
+        # =====================
+
+        distance += 0.05
+
+        # =====================
+        # БОСС КАЖДЫЕ 100 ОЧКОВ
+        # =====================
+
+        current_hundred = int(distance) // 100
+
+        if (
+            current_hundred > last_boss_hundred
+            and int(distance) > 0
+        ):
+
+            enemies.append(
+                Enemy("boss")
             )
 
-            draw_btn(
-                "Огненный (60)",
-                70, 360,
-                WIDTH - 140,
-                75
+            last_boss_hundred = current_hundred
+
+        # =====================
+        # ПРИШЕЛЬЦЫ
+        # =====================
+
+        if random.randint(1, 50) == 1:
+
+            e_type = (
+                "normal"
+                if random.randint(1, 4) != 1
+                else "elite"
             )
 
-            draw_btn(
-                "Золотой (100)",
-                70, 450,
-                WIDTH - 140,
-                75
+            enemies.append(
+                Enemy(e_type)
             )
 
-            draw_btn(
-                weapon_text,
-                70, 540,
-                WIDTH - 140,
-                75
-            )
+        # =====================
+        # ПУЛИ
+        # =====================
 
-            draw_btn(
-                "Щит 10 сек (45)",
-                70, 630,
-                WIDTH - 140,
-                75
-            )
+        for bullet in bullets[:]:
 
-            draw_btn(
-                "НАЗАД",
-                70,
-                HEIGHT - 140,
-                WIDTH - 140,
-                80,
-                RED
-            )
+            bullet.update()
 
+            if bullet.rect.bottom < 0:
 
-            if click_event:
+                bullets.remove(bullet)
 
-                if 70 < touch_pos[0] < WIDTH - 70:
+        # =====================
+        # ВРАГИ
+        # =====================
 
-                    y = touch_pos[1]
+        for enemy in enemies[:]:
 
-                    if HEIGHT - 140 < y < HEIGHT - 60:
+            enemy.update()
 
-                        game_state = "MENU"
+            if enemy.rect.top > HEIGHT:
 
-                    elif 270 < y < 345 and coins >= 40:
+                enemies.remove(enemy)
 
-                        coins -= 40
-                        current_skin = "blue"
+        # =====================
+        # ВРАЖЕСКИЕ ПУЛИ
+        # =====================
 
-                    elif 360 < y < 435 and coins >= 60:
+        for bullet in enemy_bullets[:]:
 
-                        coins -= 60
-                        current_skin = "red"
+            bullet.update()
 
-                    elif 450 < y < 525 and coins >= 100:
+            if bullet.rect.top > HEIGHT:
 
-                        coins -= 100
-                        current_skin = "yellow"
+                enemy_bullets.remove(bullet)
 
-                    elif (
-                        540 < y < 615
-                        and coins >= weapon_cost
-                        and weapon_level < 4
-                    ):
+        # =====================
+        # ПОПАДАНИЯ
+        # =====================
 
-                        coins -= weapon_cost
-                        weapon_level += 1
+        for bullet in bullets[:]:
 
-                    elif 630 < y < 705 and coins >= 45:
+            hit = False
 
-                        coins -= 45
-                        shield_time = 600
+            for enemy in enemies[:]:
 
+                if bullet.rect.colliderect(
+                    enemy.rect
+                ):
 
-        # ====================================================
-        # ИГРА
-        # ====================================================
+                    enemy.hp -= 1
+                    hit = True
 
-        elif game_state == "PLAYING":
+                    if enemy.hp <= 0:
 
-            distance += 0.05
+                        run_coins += enemy.reward
 
+                        play_sound(snd_kill)
 
-            # БОСС КАЖДЫЕ 50
-            current_fifty = int(distance) // 50
+                        enemies.remove(enemy)
 
-            if (
-                current_fifty > last_boss_fifty
-                and int(distance) > 0
+                    break
+
+            if hit and bullet in bullets:
+
+                bullets.remove(bullet)
+
+        # =====================
+        # СТОЛКНОВЕНИЕ
+        # =====================
+
+        for enemy in enemies[:]:
+
+            if enemy.rect.colliderect(
+                player
             ):
 
-                enemies.append(
-                    Enemy('boss')
-                )
+                if shield_time > 0:
 
-                last_boss_fifty = current_fifty
+                    enemies.remove(enemy)
 
+                else:
 
-            # УПРАВЛЕНИЕ
-            if is_touching:
+                    coins += run_coins
+                    game_state = GAMEOVER
 
-                player.x += (
-                    float(touch_pos[0]) - player.x
-                ) * 0.25
+                break
 
-                player.y += (
-                    float(touch_pos[1]) - player.y
-                ) * 0.25
+        # =====================
+        # ВРАЖЕСКИЕ ПУЛИ
+        # =====================
 
-                player.x = max(
-                    50,
-                    min(float(WIDTH - 50), player.x)
-                )
+        for bullet in enemy_bullets[:]:
 
-                player.y = max(
-                    150,
-                    min(float(HEIGHT - 150), player.y)
-                )
+            if bullet.rect.colliderect(
+                player
+            ):
 
+                if shield_time > 0:
 
-            # СТРЕЛЬБА
-            if fire_cooldown > 0:
-                fire_cooldown -= 1
-
-
-            if is_touching and fire_cooldown == 0:
-
-                if weapon_level == 1:
-
-                    bullets.append(
-                        Bullet(
-                            player.x,
-                            player.y
-                        )
-                    )
-
-                elif weapon_level == 2:
-
-                    bullets.append(
-                        Bullet(
-                            player.x - 15,
-                            player.y
-                        )
-                    )
-
-                    bullets.append(
-                        Bullet(
-                            player.x + 15,
-                            player.y
-                        )
+                    enemy_bullets.remove(
+                        bullet
                     )
 
                 else:
 
-                    bullets.append(
-                        Bullet(
-                            player.x,
-                            player.y
-                        )
-                    )
+                    coins += run_coins
+                    game_state = GAMEOVER
 
-                    bullets.append(
-                        Bullet(
-                            player.x - 20,
-                            player.y
-                        )
-                    )
+                    break
 
-                    bullets.append(
-                        Bullet(
-                            player.x + 20,
-                            player.y
-                        )
-                    )
+        # =====================
+        # ЩИТ
+        # =====================
 
-                safe_play(snd_shoot)
+        if shield_time > 0:
 
-                fire_cooldown = 14
+            shield_time -= 1
 
+        # =====================
+        # ФОН
+        # =====================
 
-            # =================================================
-            # ПРИШЕЛЬЦЫ
-            # БЫЛО: 1 из 28
-            # СТАЛО: 1 из 40
-            # =================================================
+        screen.fill(DARK_BLUE)
 
-            if random.randint(1, 40) == 1:
+        for star in stars:
 
-                e_type = (
-                    'normal'
-                    if random.randint(1, 4) != 1
-                    else 'elite'
+            star[1] += star[2]
+
+            if star[1] > HEIGHT:
+
+                star[1] = 0
+
+                star[0] = random.randint(
+                    0,
+                    WIDTH
                 )
 
-                enemies.append(
-                    Enemy(e_type)
-                )
-
-
-            # ПУЛИ ИГРОКА
-            for b in bullets[:]:
-
-                b.update()
-                b.draw()
-
-                if b.y < 0:
-
-                    if b in bullets:
-                        bullets.remove(b)
-
-
-            # ПУЛИ ВРАГОВ
-            for eb in enemy_bullets[:]:
-
-                eb.update()
-                eb.draw()
-
-                if (
-                    abs(player.x - eb.x) < 30
-                    and abs(player.y + 25 - eb.y) < 30
-                ):
-
-                    if shield_time > 0:
-
-                        if eb in enemy_bullets:
-                            enemy_bullets.remove(eb)
-
-                    else:
-
-                        coins += run_coins
-                        run_coins = 0
-
-                        game_state = "GAMEOVER"
-
-                if eb.y > HEIGHT:
-
-                    if eb in enemy_bullets:
-                        enemy_bullets.remove(eb)
-
-
-            # ВРАГИ
-            for e in enemies[:]:
-
-                e.update()
-                e.draw()
-
-
-                # СТОЛКНОВЕНИЕ
-                if (
-                    abs(player.x - e.x)
-                    < (player.width + e.width) // 2
-                    and
-                    abs(player.y - e.y)
-                    < (player.height + e.height) // 2
-                ):
-
-                    if shield_time > 0:
-
-                        if e in enemies:
-                            enemies.remove(e)
-
-                    else:
-
-                        coins += run_coins
-                        run_coins = 0
-
-                        game_state = "GAMEOVER"
-
-
-                # ПОПАДАНИЕ ПУЛИ
-                for b in bullets[:]:
-
-                    if (
-                        abs(b.x - e.x) < e.width // 2
-                        and
-                        abs(b.y - e.y) < e.height // 2
-                    ):
-
-                        e.hp -= 1
-
-                        if b in bullets:
-                            bullets.remove(b)
-
-                        if e.hp <= 0:
-
-                            run_coins += e.reward
-
-                            safe_play(snd_kill)
-
-                            if e in enemies:
-                                enemies.remove(e)
-
-                            break
-
-
-                # УШЁЛ ЗА ЭКРАН
-                if e.y > HEIGHT + 100:
-
-                    if e in enemies:
-                        enemies.remove(e)
-
-
-            # ЩИТ
-            if shield_time > 0:
-                shield_time -= 1
-
-
-            # ИНФОРМАЦИЯ
-            if font:
-
-                txt_d = font.render(
-                    f"Дист: {int(distance)}",
-                    True,
-                    WHITE
-                )
-
-                txt_c = font.render(
-                    f"Монеты: {run_coins}",
-                    True,
-                    YELLOW
-                )
-
-                screen.blit(
-                    txt_d,
-                    (40, 40)
-                )
-
-                screen.blit(
-                    txt_c,
-                    (WIDTH - 260, 40)
-                )
-
-
-            player.draw()
-
-
-        # ====================================================
-        # ИГРА ОКОНЧЕНА
-        # ====================================================
-
-        elif game_state == "GAMEOVER":
-
-            if font_large:
-
-                title = font_large.render(
-                    "ИГРА ОКОНЧЕНА",
-                    True,
-                    RED
-                )
-
-                screen.blit(
-                    title,
-                    (
-                        WIDTH // 2 - title.get_width() // 2,
-                        HEIGHT * 0.2
-                    )
-                )
-
-
-            if font:
-
-                txt_res = font.render(
-                    f"Пройдено: {int(distance)}",
-                    True,
-                    WHITE
-                )
-
-                txt_tot = font.render(
-                    f"Всего монет: {coins}",
-                    True,
-                    YELLOW
-                )
-
-                screen.blit(
-                    txt_res,
-                    (
-                        WIDTH // 2 - txt_res.get_width() // 2,
-                        HEIGHT * 0.33
-                    )
-                )
-
-                screen.blit(
-                    txt_tot,
-                    (
-                        WIDTH // 2 - txt_tot.get_width() // 2,
-                        HEIGHT * 0.40
-                    )
-                )
-
-
-            draw_btn(
-                "ВОЗРОДИТЬСЯ (30)",
-                70,
-                HEIGHT * 0.52,
-                WIDTH - 140,
-                75,
-                GREEN
+            pygame.draw.circle(
+                screen,
+                WHITE,
+                (
+                    int(star[0]),
+                    int(star[1])
+                ),
+                star[2]
             )
 
-            draw_btn(
-                "ЕЩЕ РАЗ",
-                70,
-                HEIGHT * 0.63,
-                WIDTH - 140,
-                75,
-                BLUE
+        # =====================
+        # ОБЪЕКТЫ
+        # =====================
+
+        for bullet in bullets:
+            bullet.draw()
+
+        for enemy in enemies:
+            enemy.draw()
+
+        for bullet in enemy_bullets:
+            bullet.draw()
+
+        draw_player()
+
+        # =====================
+        # ЩИТ
+        # =====================
+
+        if shield_time > 0:
+
+            pygame.draw.circle(
+                screen,
+                LIGHT_BLUE,
+                player.center,
+                65,
+                5
             )
 
-            draw_btn(
-                "В МЕНЮ",
-                70,
-                HEIGHT * 0.74,
-                WIDTH - 140,
-                75,
-                GRAY
+        # =====================
+        # HUD
+        # =====================
+
+        distance_text = FONT_SMALL.render(
+            f"Очки: {int(distance)}",
+            True,
+            WHITE
+        )
+
+        screen.blit(
+            distance_text,
+            (20, 20)
+        )
+
+        coins_text = FONT_SMALL.render(
+            f"Монеты: {coins + run_coins}",
+            True,
+            YELLOW
+        )
+
+        screen.blit(
+            coins_text,
+            (20, 65)
+        )
+
+        weapon_text = FONT_SMALL.render(
+            f"Оружие: {weapon_level}/3",
+            True,
+            WHITE
+        )
+
+        screen.blit(
+            weapon_text,
+            (
+                WIDTH - weapon_text.get_width() - 20,
+                20
             )
+        )
 
+    # =====================
+    # GAME OVER
+    # =====================
 
-            if click_event:
+    elif game_state == GAMEOVER:
 
-                bx = 70
-                bw = WIDTH - 140
+        draw_gameover()
 
+        if touch_pos:
 
-                # ВОЗРОЖДЕНИЕ
-                if (
-                    bx < touch_pos[0] < bx + bw
-                    and
-                    HEIGHT * 0.52
-                    < touch_pos[1]
-                    < HEIGHT * 0.52 + 75
-                    and coins >= 30
-                ):
+            bx = 80
+            bw = WIDTH - 160
+
+            # Возрождение
+            if (
+                bx < touch_pos[0] < bx + bw
+                and 600 < touch_pos[1] < 690
+            ):
+
+                if coins >= 30:
 
                     coins -= 30
 
+                    run_coins = 0
+
+                    bullets.clear()
+                    enemies.clear()
+                    enemy_bullets.clear()
+
+                    player.x = (
+                        WIDTH // 2
+                        - player.width // 2
+                    )
+
+                    player.y = HEIGHT - 250
+
                     shield_time = 300
 
-                    enemies.clear()
-                    enemy_bullets.clear()
+                    game_state = PLAYING
 
-                    player.x = float(WIDTH // 2)
-                    player.y = float(HEIGHT - 250)
+                    play_sound(
+                        snd_respawn
+                    )
 
-                    game_state = "PLAYING"
+            # Заново
+            elif (
+                bx < touch_pos[0] < bx + bw
+                and 720 < touch_pos[1] < 810
+            ):
 
-                    safe_play(snd_respawn)
+                start_game()
 
+            # В меню
+            elif (
+                bx < touch_pos[0] < bx + bw
+                and 840 < touch_pos[1] < 930
+            ):
 
-                # ЕЩЁ РАЗ
-                elif (
-                    bx < touch_pos[0] < bx + bw
-                    and
-                    HEIGHT * 0.63
-                    < touch_pos[1]
-                    < HEIGHT * 0.63 + 75
-                ):
+                game_state = MENU
 
-                    distance = 0.0
-                    run_coins = 0
-                    last_boss_fifty = 0
-
-                    enemies.clear()
-                    bullets.clear()
-                    enemy_bullets.clear()
-
-                    game_state = "PLAYING"
+    pygame.display.flip()
 
 
-                # В МЕНЮ
-                elif (
-                    bx < touch_pos[0] < bx + bw
-                    and
-                    HEIGHT * 0.74
-                    < touch_pos[1]
-                    < HEIGHT * 0.74 + 75
-                ):
-
-                    game_state = "MENU"
-
-
-        pygame.display.flip()
-
-        clock.tick(60)
-
-
-except Exception as e:
-
-    print(
-        f"Ошибка во время игры: {e}"
-    )
-
-finally:
-
-    pygame.quit()
-    sys.exit()2
+pygame.quit()
+sys.exit()
